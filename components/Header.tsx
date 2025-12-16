@@ -90,6 +90,17 @@ const Header: React.FC<HeaderProps> = ({ user, showBalance, toggleBalance, onOpe
     );
  }
 
+ if (activeTab === 'pix_success') {
+    return (
+     <header className="bg-santander-red text-white p-4 pt-safe flex items-center justify-center shadow-md z-30 relative">
+       <button className="p-1 absolute right-4" onClick={() => onNavigate('home')}>
+          <Icons.X size={28} />
+       </button>
+       <h1 className="text-[17px] font-bold">Pix</h1>
+     </header>
+    );
+ }
+
   // Home Header
   return (
     <header className={`bg-santander-red text-white pt-safe px-4 relative z-30 transition-[padding] duration-300 ${activeTab === 'home' ? 'pb-36' : 'pb-6'}`}>
