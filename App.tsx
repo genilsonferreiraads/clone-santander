@@ -247,6 +247,7 @@ function App() {
              amount={transactionAmount}
              onShowReceipt={() => handleNavigate('pix_receipt_detail')}
              onNewPix={() => handleNavigate('pix')}
+             user={user}
           />
         );
       case 'pix_receipt_detail':

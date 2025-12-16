@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TransferTarget } from '../types';
+import { TransferTarget, User } from '../types';
 import { Icons } from '../components/Icons';
 import { jsPDF } from 'jspdf';
 
@@ -8,9 +8,10 @@ interface PixSuccessProps {
   amount: string;
   onShowReceipt: () => void;
   onNewPix: () => void;
+  user: User;
 }
 
-const PixSuccess: React.FC<PixSuccessProps> = ({ target, amount, onShowReceipt, onNewPix }) => {
+const PixSuccess: React.FC<PixSuccessProps> = ({ target, amount, onShowReceipt, onNewPix, user }) => {
   const [isSharing, setIsSharing] = useState(false);
 
   const displayTarget = target || {
@@ -42,63 +43,126 @@ const PixSuccess: React.FC<PixSuccessProps> = ({ target, amount, onShowReceipt, 
     setIsSharing(true);
     try {
       const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20; // Left/Right margin
+      let y = 20; // Vertical cursor
 
-      // Header - Red Bar Simulation
-      doc.setFillColor(236, 0, 0); // Santander Red
-      doc.rect(0, 0, 210, 20, 'F');
-      
-      doc.setTextColor(255, 255, 255);
+      // --- PDF CONTENT GENERATION (Matching PixReceiptDetail) ---
+
+      // 1. Header (Santander Logo/Text)
+      doc.setTextColor(236, 0, 0); // Santander Red
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text("Santander", 15, 13);
-
-      // Title
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text("Comprovante de Pagamento Pix", 15, 40);
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(transactionData.fullDateTime, 15, 46);
-
-      // Details
-      let y = 60;
-      const lineHeight = 8;
-
-      const addLine = (label: string, value: string, boldValue = false) => {
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.setFont('helvetica', 'normal');
-        doc.text(label, 15, y);
-        
-        y += 5;
-        doc.setTextColor(0, 0, 0);
-        doc.setFont('helvetica', boldValue ? 'bold' : 'normal');
-        doc.setFontSize(12);
-        doc.text(value, 15, y);
-        
-        y += lineHeight + 2;
-      };
-
-      addLine("Valor pago", `R$ ${amount}`, true);
-      addLine("Para", displayTarget.name);
-      addLine("CPF", displayTarget.cpf);
-      addLine("Instituição", displayTarget.bank || '');
-      
-      y += 2;
-      doc.setDrawColor(200, 200, 200);
-      doc.line(15, y, 195, y);
+      // Simple text representation of logo
+      doc.text("Santander", pageWidth / 2, y, { align: 'center' });
       y += 10;
 
-      addLine("ID/Transação", transactionData.transactionId);
-      addLine("Data e Hora", transactionData.fullDateTime);
-      addLine("Código de Autenticação", "9B059BF27256AF607715088", true);
+      // 2. Title
+      doc.setTextColor(0, 0, 0); // Black
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'normal');
+      doc.text("Comprovante do Pix", pageWidth / 2, y, { align: 'center' });
+      y += 6;
 
-      // Footer
-      doc.setFontSize(9);
-      doc.setTextColor(150, 150, 150);
-      doc.text("Comprovante gerado pelo App Santander", 15, 280);
+      // 3. Date Subtitle
+      doc.setTextColor(156, 163, 175); // Gray-500 approx
+      doc.setFontSize(10);
+      doc.text(transactionData.fullDateTime, pageWidth / 2, y, { align: 'center' });
+      y += 15;
+
+      // Helper function for Data Groups
+      const drawLabel = (text: string, currentY: number) => {
+        doc.setFontSize(10);
+        doc.setTextColor(107, 114, 128); // Gray
+        doc.setFont('helvetica', 'normal');
+        doc.text(text, margin, currentY);
+        return currentY + 5;
+      };
+
+      const drawValue = (text: string, currentY: number, isBold = false) => {
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0); // Black
+        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+        doc.text(text, margin, currentY);
+        return currentY + 8; // Spacing after value
+      };
+
+      const drawLine = (currentY: number) => {
+        doc.setDrawColor(229, 231, 235); // Light Gray
+        doc.line(margin, currentY, pageWidth - margin, currentY);
+        return currentY + 8;
+      };
+
+      // 4. Valor Pago
+      y = drawLabel("Valor pago", y);
+      y = drawValue(`R$ ${amount}`, y);
+      y = drawLine(y);
+
+      // 5. Forma de pagamento
+      y = drawLabel("Forma de pagamento", y);
+      y = drawValue("Ag 4037 Cc 1019649-0", y);
+      y += 4; // Extra space
+
+      // 6. Dados do Recebedor
+      doc.setFontSize(10);
+      doc.setTextColor(107, 114, 128);
+      doc.text("Dados do recebedor", margin, y);
+      y += 6;
+
+      // Nested details for receiver
+      y = drawLabel("Para", y);
+      y = drawValue(displayTarget.name, y);
+      
+      y = drawLabel("CPF", y);
+      y = drawValue(displayTarget.cpf, y);
+
+      y = drawLabel("Chave", y);
+      y = drawValue("***.438.494-**", y);
+
+      y = drawLabel("Instituição", y);
+      y = drawValue(displayTarget.bank || '', y);
+      y += 4; // Extra space
+
+      // 7. Dados do Pagador
+      doc.setFontSize(10);
+      doc.setTextColor(107, 114, 128);
+      doc.text("Dados do pagador", margin, y);
+      y += 6;
+
+      // Nested details for payer
+      y = drawLabel("De", y);
+      y = drawValue(user.name, y);
+
+      y = drawLabel("CPF", y);
+      y = drawValue("***.438.494-**", y); // Matching hardcoded logic or user prop if available
+
+      y = drawLabel("Instituição", y);
+      y = drawValue("BCO SANTANDER (BRASIL) S.A.", y);
+      
+      // Divider
+      y += 2;
+      // y = drawLine(y); // Optional: The screenshot in Detail view usually doesn't have a full divider here, just spacing
+      y += 4;
+
+      // 8. Footer Info
+      y = drawLabel("ID/Transação", y);
+      // Handle potential long ID wrapping
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      const splitId = doc.splitTextToSize(transactionData.transactionId, pageWidth - (margin * 2));
+      doc.text(splitId, margin, y);
+      y += (splitId.length * 6) + 4;
+
+      y = drawLabel("Data e hora da transação", y);
+      y = drawValue(transactionData.fullDateTime, y);
+
+      // Bottom Watermark
+      doc.setFontSize(8);
+      doc.setTextColor(156, 163, 175);
+      doc.text("Comprovante gerado pelo App Santander", margin, 280);
+
+      // --- END PDF CONTENT ---
 
       // Generate Blob
       const pdfBlob = doc.output('blob');
