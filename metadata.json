@@ -1,0 +1,5 @@
+{
+  "name": "Santander Clone",
+  "description": "A high-fidelity clone of the Santander mobile banking application interface using React and Tailwind CSS.",
+  "requestFramePermissions": []
+}
