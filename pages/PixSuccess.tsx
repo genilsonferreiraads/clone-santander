@@ -85,8 +85,14 @@ const PixSuccess: React.FC<PixSuccessProps> = ({ target, amount, onShowReceipt, 
     try {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 20; // Left/Right margin
-      let y = 15; // Vertical cursor
+      
+      // Vertical alignment calculation:
+      // A4 is 297mm high. 
+      // Estimated content height is approx 210-220mm.
+      // Starting at 40mm places the content block roughly in the center vertically.
+      let y = 40; 
 
       // --- PDF CONTENT GENERATION (Matching PixReceiptDetail) ---
 
@@ -211,10 +217,10 @@ const PixSuccess: React.FC<PixSuccessProps> = ({ target, amount, onShowReceipt, 
       y = drawLabel("Data e hora da transação", y);
       y = drawValue(transactionData.fullDateTime, y);
 
-      // Bottom Watermark
+      // Bottom Watermark - Fixed at the bottom of the page
       doc.setFontSize(8);
       doc.setTextColor(156, 163, 175);
-      doc.text("Comprovante gerado pelo App Santander", margin, 280);
+      doc.text("Comprovante gerado pelo App Santander", margin, pageHeight - 15);
 
       // --- END PDF CONTENT ---
 
