@@ -141,7 +141,7 @@ const PixSuccess: React.FC<PixSuccessProps> = ({ target, amount, onShowReceipt, 
       <div className="mb-6">
          <h3 className="font-bold text-[16px] text-gray-900 mb-1">Comprovante do Pix</h3>
          <p className="text-[15px] text-gray-800 leading-snug">
-           Você pode consultar o comprovante da sua transação em Início > Pix > Extrato Pix.
+           Você pode consultar o comprovante da sua transação em Início &gt; Pix &gt; Extrato Pix.
          </p>
       </div>
 
