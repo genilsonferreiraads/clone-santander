@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TransferTarget, User } from '../types';
 import { Icons } from '../components/Icons';
 import { jsPDF } from 'jspdf';
+import Loader from '../components/Loader';
 
 interface PixSuccessProps {
   target: TransferTarget | null;
@@ -25,16 +26,13 @@ const PixSuccess: React.FC<PixSuccessProps> = ({ target, amount, onShowReceipt, 
   const displayTarget = target || {
     name: 'Genilson Ferreira dos Santos',
     cpf: '***.438.494-**',
-    bank: 'NU PAGAMENTOS - IP'
+    bank: '260 - NU PAGAMENTOS S.A.'
   };
 
-  // Generate date/time once on mount
   const [transactionData] = useState(() => {
     const now = new Date();
     const dateStr = now.toLocaleDateString('pt-BR');
     const timeStr = now.toLocaleTimeString('pt-BR');
-    
-    // Generate a dynamic ID based on date: E + random + YYYYMMDD + random
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
@@ -50,13 +48,11 @@ const PixSuccess: React.FC<PixSuccessProps> = ({ target, amount, onShowReceipt, 
   const generateLogoDataUrl = (): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      // Combine XML declaration with SVG data
       const svgBlob = new Blob([SANTANDER_LOGO_SVG], { type: 'image/svg+xml;charset=utf-8' });
       const url = URL.createObjectURL(svgBlob);
 
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        // Set scale for high quality PDF render
         const scale = 4; 
         canvas.width = 238.2 * scale;
         canvas.height = 41.5 * scale;
@@ -80,170 +76,158 @@ const PixSuccess: React.FC<PixSuccessProps> = ({ target, amount, onShowReceipt, 
     });
   };
 
-  const handleShare = async () => {
+  const createReceiptPDF = async (mode: 'share' | 'view') => {
     setIsSharing(true);
     try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 20; // Left/Right margin
-      
-      // Vertical alignment calculation:
-      // A4 is 297mm high. 
-      // Estimated content height is approx 210-220mm.
-      // Starting at 40mm places the content block roughly in the center vertically.
-      let y = 40; 
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // --- PDF CONTENT GENERATION (Matching PixReceiptDetail) ---
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [104, 191]
+      });
 
-      // 1. Header (Santander SVG Logo)
+      const pageWidth = 104;
+      const pageHeight = 191;
+      const margin = 10;
+      let y = 10;
+
+      const drawFooter = (pageNum: string) => {
+        doc.setFontSize(7);
+        doc.setTextColor(150, 150, 150);
+        doc.setFont('helvetica', 'normal');
+        doc.text("Comprovante do Pix", margin, pageHeight - 8);
+        doc.text(pageNum, pageWidth - margin - 3, pageHeight - 8);
+      };
+
+      const drawSection = (label: string, value: string, boldValue = false) => {
+        doc.setFontSize(6.5);
+        doc.setTextColor(150, 150, 150);
+        doc.setFont('helvetica', 'normal');
+        doc.text(label, margin, y);
+        
+        y += 3.8;
+        
+        doc.setFontSize(8);
+        doc.setTextColor(30, 30, 30);
+        doc.setFont('helvetica', boldValue ? 'bold' : 'normal');
+        
+        const splitValue = doc.splitTextToSize(value, pageWidth - (margin * 2));
+        doc.text(splitValue, margin, y);
+        y += (splitValue.length * 4) + 2.5;
+      };
+
+      const drawSmallHeader = (text: string) => {
+        y += 1.5;
+        doc.setFontSize(7);
+        doc.setTextColor(150, 150, 150);
+        doc.setFont('helvetica', 'normal');
+        doc.text(text, margin, y);
+        y += 4.5;
+      };
+
+      // --- PÁGINA 1 ---
+      // Logo (Centralizado)
       try {
         const logoData = await generateLogoDataUrl();
-        // Aspect ratio 238.2 / 41.5 = ~5.74
-        // Let's set width to 45mm, calculate height
-        const logoWidth = 45;
+        const logoWidth = 26; 
         const logoHeight = logoWidth / 5.74;
-        const logoX = (pageWidth - logoWidth) / 2;
-        
+        const logoX = (pageWidth - logoWidth) / 2; 
         doc.addImage(logoData, 'PNG', logoX, y, logoWidth, logoHeight);
-        y += logoHeight + 10;
+        y += logoHeight + 7; // Diminuído de 14 para 7 conforme solicitado para aproximar
       } catch (e) {
-        console.error("Failed to render logo", e);
-        // Fallback
-        doc.setTextColor(236, 0, 0); 
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.text("Santander", pageWidth / 2, y + 5, { align: 'center' });
-        y += 15;
+        y += 8;
       }
 
-      // 2. Title
-      doc.setTextColor(0, 0, 0); // Black
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'normal');
-      doc.text("Comprovante do Pix", pageWidth / 2, y, { align: 'center' });
-      y += 6;
-
-      // 3. Date Subtitle
-      doc.setTextColor(156, 163, 175); // Gray-500 approx
-      doc.setFontSize(10);
-      doc.text(transactionData.fullDateTime, pageWidth / 2, y, { align: 'center' });
-      y += 15;
-
-      // Helper function for Data Groups
-      const drawLabel = (text: string, currentY: number) => {
-        doc.setFontSize(10);
-        doc.setTextColor(107, 114, 128); // Gray
-        doc.setFont('helvetica', 'normal');
-        doc.text(text, margin, currentY);
-        return currentY + 5;
-      };
-
-      const drawValue = (text: string, currentY: number, isBold = false) => {
-        doc.setFontSize(12);
-        doc.setTextColor(0, 0, 0); // Black
-        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
-        doc.text(text, margin, currentY);
-        return currentY + 8; // Spacing after value
-      };
-
-      const drawLine = (currentY: number) => {
-        doc.setDrawColor(229, 231, 235); // Light Gray
-        doc.line(margin, currentY, pageWidth - margin, currentY);
-        return currentY + 8;
-      };
-
-      // 4. Valor Pago
-      y = drawLabel("Valor pago", y);
-      y = drawValue(`R$ ${amount}`, y);
-      y = drawLine(y);
-
-      // 5. Forma de pagamento
-      y = drawLabel("Forma de pagamento", y);
-      y = drawValue("Ag 4037 Cc 1019649-0", y);
-      y += 4; // Extra space
-
-      // 6. Dados do Recebedor
-      doc.setFontSize(10);
-      doc.setTextColor(107, 114, 128);
-      doc.text("Dados do recebedor", margin, y);
-      y += 6;
-
-      // Nested details for receiver
-      y = drawLabel("Para", y);
-      y = drawValue(displayTarget.name, y);
-      
-      y = drawLabel("CPF", y);
-      y = drawValue(displayTarget.cpf, y);
-
-      y = drawLabel("Chave", y);
-      y = drawValue("***.438.494-**", y);
-
-      y = drawLabel("Instituição", y);
-      y = drawValue(displayTarget.bank || '', y);
-      y += 4; // Extra space
-
-      // 7. Dados do Pagador
-      doc.setFontSize(10);
-      doc.setTextColor(107, 114, 128);
-      doc.text("Dados do pagador", margin, y);
-      y += 6;
-
-      // Nested details for payer
-      y = drawLabel("De", y);
-      y = drawValue(user.name, y);
-
-      y = drawLabel("CPF", y);
-      y = drawValue("***.438.494-**", y); // Matching hardcoded logic or user prop if available
-
-      y = drawLabel("Instituição", y);
-      y = drawValue("BCO SANTANDER (BRASIL) S.A.", y);
-      
-      // Divider
-      y += 2;
-      // y = drawLine(y); // Optional: The screenshot in Detail view usually doesn't have a full divider here, just spacing
-      y += 4;
-
-      // 8. Footer Info
-      y = drawLabel("ID/Transação", y);
-      // Handle potential long ID wrapping
-      doc.setFontSize(12);
+      // Título e Data (Centralizados)
+      doc.setFontSize(10.5);
       doc.setTextColor(0, 0, 0);
       doc.setFont('helvetica', 'normal');
-      const splitId = doc.splitTextToSize(transactionData.transactionId, pageWidth - (margin * 2));
-      doc.text(splitId, margin, y);
-      y += (splitId.length * 6) + 4;
+      doc.text("Comprovante do Pix", pageWidth / 2, y, { align: 'center' }); 
+      y += 4.5;
+      doc.setFontSize(7.5);
+      doc.setTextColor(150, 150, 150);
+      doc.text(transactionData.fullDateTime, pageWidth / 2, y, { align: 'center' }); 
+      y += 7;
 
-      y = drawLabel("Data e hora da transação", y);
-      y = drawValue(transactionData.fullDateTime, y);
+      // Linha Superior
+      doc.setDrawColor(230, 230, 230);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 7;
 
-      // Bottom Watermark - Fixed at the bottom of the page
-      doc.setFontSize(8);
-      doc.setTextColor(156, 163, 175);
-      doc.text("Comprovante gerado pelo App Santander", margin, pageHeight - 15);
-
-      // --- END PDF CONTENT ---
-
-      // Generate Blob
-      const pdfBlob = doc.output('blob');
+      // Conteúdo P1 (Mantido alinhado à esquerda)
+      drawSection("Valor pago", `R$ ${amount}`, true);
       
-      // Create File object
-      const file = new File([pdfBlob], `comprovante_pix_${transactionData.transactionId}.pdf`, { type: 'application/pdf' });
+      doc.setDrawColor(245, 245, 245);
+      doc.line(margin, y - 2, pageWidth - margin, y - 2);
+      y += 1.5;
 
-      // Share via Native Share Sheet
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Comprovante Pix Santander',
-          text: `Segue o comprovante da transação no valor de R$ ${amount}.`
-        });
+      drawSection("Forma de pagamento", "Ag 04037 Cc 1019649-0");
+      
+      drawSmallHeader("Dados do recebedor");
+      drawSection("Para", displayTarget.name);
+      drawSection("CPF", displayTarget.cpf);
+      drawSection("Chave", displayTarget.cpf);
+      drawSection("Instituição", displayTarget.bank || 'Instituição Financeira');
+
+      drawSmallHeader("Dados do pagador");
+      drawSection("De", user.name.toUpperCase());
+      drawSection("CPF", "***.438.494-**");
+      drawSection("Instituição", "033 - BANCO SANTANDER S.A.");
+
+      drawSection("ID/Transação", transactionData.transactionId);
+      drawSection("Data e hora da transação", transactionData.fullDateTime);
+
+      drawFooter("1/2");
+
+      // --- PÁGINA 2 ---
+      doc.addPage([104, 191], 'portrait');
+      y = 15;
+
+      drawSection("Código de autenticação", "9B059BF27256AF607715088", true);
+      
+      doc.setDrawColor(230, 230, 230);
+      doc.line(margin, y - 1, pageWidth - margin, y - 1);
+      y += 15;
+
+      // Central de Atendimento (Mantido centralizado)
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Central de Atendimento Santander", pageWidth / 2, y, { align: 'center' });
+      y += 8;
+
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text("4004-3535 (Capitais e Regiões Metropolitanas)", pageWidth / 2, y, { align: 'center' });
+      y += 5;
+      doc.text("0800-702-3535 (Demais Localidades)", pageWidth / 2, y, { align: 'center' });
+      y += 5;
+      doc.text("SAC 0800-762-7777", pageWidth / 2, y, { align: 'center' });
+      y += 5;
+      doc.text("Ouvidoria 0800-726-0322", pageWidth / 2, y, { align: 'center' });
+
+      drawFooter("2/2");
+
+      if (mode === 'view') {
+        const blob = doc.output('blob');
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
       } else {
-        // Fallback for browsers that don't support file sharing -> Download
-        doc.save(`comprovante_pix_${transactionData.transactionId}.pdf`);
+        const pdfBlob = doc.output('blob');
+        const file = new File([pdfBlob], `comprovante_pix_${transactionData.transactionId}.pdf`, { type: 'application/pdf' });
+        if (navigator.share && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Comprovante Pix Santander',
+            text: `Segue o comprovante da transação no valor de R$ ${amount}.`
+          });
+        } else {
+          doc.save(`comprovante_pix_${transactionData.transactionId}.pdf`);
+        }
       }
 
     } catch (error) {
-      console.error("Error generating or sharing PDF:", error);
+      console.error("Error generating PDF:", error);
     } finally {
       setIsSharing(false);
     }
@@ -251,8 +235,8 @@ const PixSuccess: React.FC<PixSuccessProps> = ({ target, amount, onShowReceipt, 
 
   return (
     <div className="bg-white min-h-[calc(100vh-60px)] font-sans flex flex-col p-4 relative">
-      
-      {/* Success Card */}
+      {isSharing && <Loader />}
+
       <div className="border border-gray-300 rounded-lg p-4 flex items-center space-x-4 mb-8">
          <div className="w-8 h-8 rounded-full bg-[#7DB655] flex items-center justify-center shrink-0">
              <Icons.Check className="text-white" size={20} strokeWidth={3} />
@@ -306,21 +290,13 @@ const PixSuccess: React.FC<PixSuccessProps> = ({ target, amount, onShowReceipt, 
          </div>
       </div>
 
-      {/* Footer Buttons */}
       <div className="mt-8 pb-8 space-y-4">
           <button 
-             onClick={handleShare}
+             onClick={() => createReceiptPDF('share')}
              disabled={isSharing}
-             className="w-full bg-santander-red text-white font-medium text-[16px] py-3 rounded hover:bg-santander-darkRed transition-colors flex justify-center items-center"
+             className="w-full bg-santander-red text-white font-medium text-[16px] py-3 rounded hover:bg-santander-darkRed transition-colors flex justify-center items-center h-[52px] shadow-md"
           >
-             {isSharing ? (
-               <>
-                 <Icons.ArrowRightLeft className="animate-spin mr-2" size={20} />
-                 Gerando PDF...
-               </>
-             ) : (
-               "Salvar ou Compartilhar"
-             )}
+             Salvar ou Compartilhar
           </button>
 
           <button 
@@ -337,7 +313,6 @@ const PixSuccess: React.FC<PixSuccessProps> = ({ target, amount, onShowReceipt, 
              Ver comprovante completo
           </button>
       </div>
-
     </div>
   );
 };

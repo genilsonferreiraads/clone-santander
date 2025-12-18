@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Icons } from '../components/Icons';
 import { User, Transaction } from '../types';
 
@@ -9,12 +9,10 @@ interface ExtractProps {
 }
 
 const Extract: React.FC<ExtractProps> = ({ user, transactions, onTransactionClick }) => {
-  // Initial state false to match screenshot (hidden balance)
   const [showBalance, setShowBalance] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  // Helper to format currency: -R$ 13,99
   const formatCurrency = (amount: number) => {
     const isNegative = amount < 0;
     const absValue = Math.abs(amount);
@@ -24,54 +22,53 @@ const Extract: React.FC<ExtractProps> = ({ user, transactions, onTransactionClic
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    // Simulate API delay
     setTimeout(() => {
       setLastUpdate(new Date());
       setIsRefreshing(false);
     }, 1500);
   };
 
-  // Format time for "Última atualização"
   const formattedTime = lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-  // Group transactions by date
+  // Group transactions by date (only the YYYY-MM-DD part)
   const groupedTransactions = transactions.reduce((groups, transaction) => {
-    const date = transaction.date;
-    if (!groups[date]) {
-      groups[date] = [];
+    // Ensure we only get the YYYY-MM-DD part even if it's an ISO string
+    const dateKey = transaction.date.split('T')[0];
+    if (!groups[dateKey]) {
+      groups[dateKey] = [];
     }
-    groups[date].push(transaction);
+    groups[dateKey].push(transaction);
     return groups;
   }, {} as Record<string, Transaction[]>);
 
-  // Sort dates descending (Newest first)
   const sortedDates = Object.keys(groupedTransactions).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
-  // Date formatter
   const formatDateHeader = (dateStr: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    if (dateStr === today) return "Hoje.";
-    if (dateStr === '2025-12-09') return "Hoje."; // Keeping legacy hardcoded check if needed
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (dateStr === todayStr) return "Hoje.";
 
-    const date = new Date(dateStr + 'T12:00:00'); 
+    // Split components to avoid timezone shifts
+    const [year, month, day] = dateStr.split('-').map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return "Data desconhecida";
+
+    const date = new Date(year, month - 1, day);
     const weekday = date.toLocaleDateString('pt-BR', { weekday: 'long' });
-    const day = date.getDate();
-    const month = date.toLocaleDateString('pt-BR', { month: 'long' });
-    return `${weekday}, ${day} de ${month}`;
+    const monthName = date.toLocaleDateString('pt-BR', { month: 'long' });
+    
+    // Capitalize first letter of weekday
+    const capitalizedWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1).split('-')[0];
+    
+    return `${capitalizedWeekday}, ${day} de ${monthName}`;
   };
 
   return (
     <div className="pb-24 bg-white min-h-screen font-sans">
-      
-      {/* Saldo Section */}
       <div className="p-5 border-b border-gray-100">
         <div className="text-gray-900 text-[17px] font-normal mb-1">Saldo disponível</div>
         
         <div className="flex justify-between items-center h-[42px] mb-2">
           <div className="flex items-center">
             <span className="text-[28px] font-bold text-gray-900 mr-3">R$</span>
-            
-            {/* Logic: If refreshing OR privacy mode is active (showBalance false), show the BLACK bar */}
             {isRefreshing || !showBalance ? (
                <div className="h-2.5 w-44 bg-[#333333] rounded-full mt-2"></div>
             ) : (
@@ -112,7 +109,6 @@ const Extract: React.FC<ExtractProps> = ({ user, transactions, onTransactionClic
         </div>
       </div>
 
-      {/* Lançamentos Futuros */}
       <div className="bg-[#DCEBF2] px-4 py-3.5 flex justify-between items-center border-b border-gray-200">
          <div className="flex items-center space-x-3 text-gray-900">
             <Icons.Receipt size={22} strokeWidth={1.5} />
@@ -121,26 +117,20 @@ const Extract: React.FC<ExtractProps> = ({ user, transactions, onTransactionClic
          <Icons.ChevronDown size={24} className="text-gray-600 stroke-1" />
       </div>
 
-      {/* Transactions List */}
       <div>
         {sortedDates.map((date) => (
           <div key={date}>
-            {/* Date Header */}
             <div className="bg-[#F4F4F4] px-4 py-3 flex items-center space-x-3 border-b border-gray-200/50">
               <Icons.Receipt size={22} className="text-gray-600 stroke-1.5" />
-              <span className="text-[16px] text-gray-900 lowercase first-letter:capitalize font-normal">
+              <span className="text-[16px] text-gray-900 font-normal">
                 {formatDateHeader(date)}
               </span>
             </div>
 
-            {/* Transactions for this date */}
             <div>
               {groupedTransactions[date].map((t) => {
                 const isPositive = t.amount >= 0;
-                // Colors based on screenshot
                 const dotColor = isPositive ? 'bg-[#87CEEB]' : 'bg-[#EA8F34]';
-                
-                // Split description if it contains newline
                 const parts = t.description.split('\n');
                 const title = parts[0];
                 const subtitle = parts.length > 1 ? parts[1] : '';
@@ -177,7 +167,6 @@ const Extract: React.FC<ExtractProps> = ({ user, transactions, onTransactionClic
           </div>
         ))}
       </div>
-
     </div>
   );
 };

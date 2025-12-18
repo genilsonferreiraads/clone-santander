@@ -96,7 +96,7 @@ const Header: React.FC<HeaderProps> = ({ user, showBalance, toggleBalance, onOpe
        <button className="p-1 absolute right-4" onClick={() => onNavigate('home')}>
           <Icons.X size={28} />
        </button>
-       <h1 className="text-[17px] font-bold">Pix</h1>
+       <h1 className="text-[17px] font-bold">Comprovante</h1>
      </header>
     );
  }

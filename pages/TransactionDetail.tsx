@@ -14,81 +14,76 @@ const TransactionDetail: React.FC<TransactionDetailProps> = ({ transaction, onBa
 
   const isPositive = transaction.amount >= 0;
   const absAmount = Math.abs(transaction.amount);
-  
-  // Extract info from description (matches format in Extract: "Title\nSubtitle")
   const parts = transaction.description.split('\n');
-  // Title (e.g. "Pix enviado")
-  const typeLabel = parts[0]; 
-  // Name (e.g. "Genilson Ferreira...")
+  
+  let typeLabel = parts[0]; 
+  if (transaction.type === 'pix_received') {
+    typeLabel = 'Pix recebido';
+  } else if (transaction.type === 'pix_sent') {
+    typeLabel = 'Pix enviado';
+  }
+
   const name = transaction.target?.name || (parts.length > 1 ? parts[1] : 'Desconhecido');
-  // Bank (e.g. "Nu Pagamentos Ip") - fallback to target bank or generic if not available
   const bankName = transaction.target?.bank || 'Instituição Financeira';
 
-  // Format Date: "Segunda, 15/12/2025 às 21:03"
-  const dateObj = new Date(transaction.date + 'T12:00:00');
-  const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
-  const formattedDate = dateObj.toLocaleDateString('pt-BR');
+  // Robust parsing for Transaction Detail
+  const dateObj = new Date(transaction.date);
+  let dateTimeString = "Data indisponível";
   
-  // Mock time or use current if it's "today", otherwise random fixed time for "history" effect
-  const time = "21:03"; // Hardcoded to match screenshot vibe or could be random
-  const capitalWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1).split('-')[0]; // Capitalize and remove "-feira" if preferred, or keep as is. Screenshot shows "Segunda"
-  
-  const dateTimeString = `${capitalWeekday}, ${formattedDate} às ${time}`;
+  if (!isNaN(dateObj.getTime())) {
+    const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
+    const formattedDate = dateObj.toLocaleDateString('pt-BR');
+    const time = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const capitalWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1).split('-')[0];
+    dateTimeString = `${capitalWeekday}, ${formattedDate} às ${time}`;
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
-       {/* Header */}
-       <header className="bg-santander-red text-white p-4 pt-safe flex items-center shadow-md relative z-30">
+       <header className="bg-santander-red text-white p-4 pt-safe flex items-center shadow-md relative z-30 h-16 shrink-0">
         <button onClick={onBack} className="p-1 mr-4">
           <Icons.ChevronRight className="rotate-180" size={28} />
         </button>
         <h1 className="text-lg font-bold">Detalhe do lançamento</h1>
       </header>
 
-      <div className="flex-1 p-6 flex flex-col">
-         
-         {/* Top Section */}
+      <div className="flex-1 p-6 flex flex-col overflow-y-auto no-scrollbar">
          <div className="mb-6">
-            <p className="text-gray-500 text-sm mb-1 font-normal">{typeLabel}</p>
+            <p className="text-gray-500 text-[15px] mb-2 font-normal">{typeLabel}</p>
             <p className="text-[17px] text-gray-900 mb-1">
-               Para <span className="font-bold">{name}</span>
+               {isPositive ? 'De' : 'Para'} <span className="font-bold">{name}</span>
             </p>
-            <h1 className="text-[32px] font-bold text-gray-900 mb-1 tracking-tight">
+            <h1 className={`text-[36px] font-bold mb-1 tracking-tight ${isPositive ? 'text-[#75B63E]' : 'text-gray-900'}`}>
                {isPositive ? '' : '-'}R$ {absAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </h1>
-            <p className="text-gray-500 text-sm mb-6 font-normal">
+            <p className="text-gray-500 text-[15px] mb-6 font-normal">
               {bankName}
             </p>
-            
-            {/* Divider */}
-            <div className="h-[1px] bg-gray-200 w-full"></div>
+            <div className="h-[1px] bg-gray-200 w-full mb-6"></div>
          </div>
 
-         {/* Details Section */}
-         <div>
-            <div className="mb-6">
-               <p className="text-gray-500 text-[13px] mb-1 font-normal">Data e horário</p>
-               <p className="text-[17px] text-gray-900 font-normal">
+         <div className="space-y-6">
+            <div>
+               <p className="text-gray-500 text-[15px] mb-1 font-normal">Data e horário</p>
+               <p className="text-[20px] text-gray-800 font-normal">
                  {dateTimeString}
                </p>
             </div>
 
             <div>
-               <p className="text-gray-500 text-[13px] mb-1 font-normal">Saldo em conta após este lançamento</p>
-               <p className="text-[17px] text-gray-900 font-normal">
+               <p className="text-gray-500 text-[15px] mb-1 font-normal">Saldo em conta após este lançamento</p>
+               <p className="text-[20px] text-gray-800 font-normal">
                  R$ {user.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                </p>
             </div>
          </div>
-
       </div>
 
-      {/* Footer Button - Only show receipt button for Pix transactions */}
       {transaction.type === 'pix_sent' && (
         <div className="p-4 pb-8 mt-auto">
             <button 
             onClick={onOpenReceipt}
-            className="w-full bg-santander-red text-white font-bold text-[16px] py-3 rounded hover:bg-santander-darkRed transition-colors"
+            className="w-full bg-santander-red text-white font-bold text-[16px] py-3.5 rounded hover:bg-santander-darkRed transition-colors"
             >
             Acessar comprovante
             </button>
