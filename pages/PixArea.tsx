@@ -41,6 +41,18 @@ const PixArea: React.FC<PixAreaProps> = ({ onNavigateToAmount }) => {
     setInputValue(formatted);
   };
 
+  const handleContinue = () => {
+    if (inputValue.trim()) {
+      // Simulate finding a contact or just proceeding with the typed key
+      onNavigateToAmount({
+        name: 'Genilson Ferreira Dos Santos',
+        cpf: inputValue,
+        bank: 'NU PAGAMENTOS - IP',
+        key: inputValue
+      });
+    }
+  };
+
   const recentContacts = [
     { initials: 'GS', name: 'Genilso...', type: 'CPF', fullData: { name: 'Genilson Ferreira Dos Santos', cpf: '***.438.494-**', bank: 'Nu Pagamentos  Ip' } },
     { initials: 'HS', name: 'Higina C.', type: 'Aleatória', fullData: { name: 'Higina Carolina Gomes', cpf: '***.123.456-**', bank: 'BANCO DO BRASIL' } },
@@ -50,8 +62,10 @@ const PixArea: React.FC<PixAreaProps> = ({ onNavigateToAmount }) => {
     { initials: 'GS', name: 'Genilso...', type: 'E-mail', fullData: { name: 'Genilson Ferreira Dos Santos', cpf: '***.438.494-**', bank: 'Nu Pagamentos  Ip' } },
   ];
 
+  const hasInput = inputValue.length > 0;
+
   return (
-    <div className="bg-white min-h-[calc(100vh-60px)] font-sans pb-10">
+    <div className="bg-white min-h-[calc(100vh-60px)] font-sans pb-32 relative">
       
       {/* Title */}
       <div className="px-5 pt-10 pb-6">
@@ -109,17 +123,14 @@ const PixArea: React.FC<PixAreaProps> = ({ onNavigateToAmount }) => {
         <h3 className="text-[20px] text-gray-800 font-bold mb-6">Você também pode usar</h3>
         
         <div className="grid grid-cols-3 gap-3">
-           {/* Card 1 */}
            <div className="bg-white rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.06)] p-4 flex flex-col items-center justify-center text-center border border-gray-50 aspect-square">
               <Icons.Building2 size={24} className="text-santander-red mb-3" />
               <span className="text-[13px] text-gray-700 leading-tight">Agência<br/>e conta</span>
            </div>
-           {/* Card 2 */}
            <div className="bg-white rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.06)] p-4 flex flex-col items-center justify-center text-center border border-gray-50 aspect-square">
               <Icons.FileText size={24} className="text-santander-red mb-3" />
               <span className="text-[13px] text-gray-700 leading-tight">Pix copia<br/>e cola</span>
            </div>
-           {/* Card 3 */}
            <div className="bg-white rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.06)] p-4 flex flex-col items-center justify-center text-center border border-gray-50 aspect-square">
               <Icons.QrCode size={24} className="text-santander-red mb-3" />
               <span className="text-[13px] text-gray-700 leading-tight">Código<br/>QR</span>
@@ -128,7 +139,7 @@ const PixArea: React.FC<PixAreaProps> = ({ onNavigateToAmount }) => {
       </div>
 
       {/* Outras transferências Section */}
-      <div className="px-5">
+      <div className="px-5 mb-10">
          <h3 className="text-[20px] text-gray-800 font-bold mb-6">Outras transferências</h3>
          
          <div className="bg-white rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-gray-100 p-5 flex items-center justify-between">
@@ -143,6 +154,18 @@ const PixArea: React.FC<PixAreaProps> = ({ onNavigateToAmount }) => {
             </span>
          </div>
       </div>
+
+      {/* Floating Continue Button (Appears when user types) */}
+      {hasInput && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 z-50 animate-in slide-in-from-bottom duration-300">
+           <button 
+             onClick={handleContinue}
+             className="w-full bg-santander-red text-white font-bold text-[16px] py-4 rounded shadow-lg active:bg-santander-darkRed transition-colors"
+           >
+             Continuar
+           </button>
+        </div>
+      )}
 
     </div>
   );
